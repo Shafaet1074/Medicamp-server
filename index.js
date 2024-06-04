@@ -1,6 +1,7 @@
 const express = require('express');
 require('dotenv').config()
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 const app=express();
 const port=process.env.PORT || 5005; 
 
@@ -22,6 +23,8 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
+
+
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
     // Send a ping to confirm a successful connection
@@ -31,9 +34,41 @@ async function run() {
     const userCollections =client.db('MediCamp').collection('users')
 
 
+   
+
+  //  jwt related API
+
+   app.post('/jwt' , async(req,res)=>{
+    const user =req.body;
+    const token=jwt.sign(user,process.env.ACCESS_TOKEN,{expiresIn: '1h'});
+    res.send({ token });
+   })
+  
+
+   const verifyToken = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).send({ message: 'forbidden access' });
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
+      if (err) {
+        return res.status(401).send({ message: 'unauthorized' });
+      }
+      req.user = decoded;
+      next();
+    });
+  };
+
+  
+
+
+
+
 
 
    //users related API
+
 
    app.post('/users', async(req,res) =>{
       const user =req.body;
@@ -46,7 +81,23 @@ async function run() {
       const result = await userCollections.insertOne(user);
       res.send(result);
    })
+   app.get('/users',verifyToken,async(req,res)=>{
+    const result=await userCollections.find().toArray();
+    res.send(result)
+  })
 
+
+   app.patch('/users/admin/:id', async(req,res)=>{
+    const id =req.params.id;
+    const filter ={_id:new ObjectId(id)};
+    const updatedDoc={
+      $set:{
+        role:'admin'
+      }
+    }
+    const result = await  userCollections.updateOne(filter,updatedDoc)
+    res.send(result);
+   })
 
 
 
