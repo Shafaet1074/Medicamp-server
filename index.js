@@ -28,7 +28,31 @@ async function run() {
 
     const CampCollections =client.db('MediCamp').collection('Camps')
     const OrganizerCollections =client.db('MediCamp').collection('organizers')
+    const userCollections =client.db('MediCamp').collection('users')
 
+
+
+
+   //users related API
+
+   app.post('/users', async(req,res) =>{
+      const user =req.body;
+      const query ={email: user.email}
+      const existingUser= await userCollections.findOne(query);
+   
+      if(existingUser){
+        return res.send({message:'user already exists',insertedId: null})
+      }
+      const result = await userCollections.insertOne(user);
+      res.send(result);
+   })
+
+
+
+
+
+
+    //camps related API 
     app.get('/camps', async(req,res)=>{
       const result=await CampCollections.find().toArray();
       res.send(result)
@@ -70,6 +94,8 @@ async function run() {
 
 
 
+
+  //organizers related API
 
     app.get('/organizers', async(req,res)=>{
       const result=await OrganizerCollections.find().toArray();
