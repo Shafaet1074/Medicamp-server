@@ -4,6 +4,8 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const app=express();
 const port=process.env.PORT || 5005; 
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
 
 app.use(express.json());
 app.use(cors());
@@ -32,6 +34,7 @@ async function run() {
     const CampCollections =client.db('MediCamp').collection('Camps')
     const OrganizerCollections =client.db('MediCamp').collection('organizers')
     const userCollections =client.db('MediCamp').collection('users')
+    const cartCollection = client.db("MediCamp").collection("carts");
 
 
    
@@ -48,7 +51,7 @@ async function run() {
    const verifyToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
-      return res.status(401).send({ message: 'forbidden access' });
+      return res.status(401).send({ message: 'unauthorized access' });
     }
     const token = authHeader.split(' ')[1];
     jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
@@ -59,6 +62,18 @@ async function run() {
       next();
     });
   };
+
+  // use verify admin after verifyToken
+  const verifyAdmin= async(req,res,next) =>{
+    const email=req.user.email;
+    const query ={email:email};
+    const user =await userCollections.findOne(query);
+    const isAdmin =user?.role === 'admin';
+    if(!isAdmin){
+      return res.status(403).send({message:'forbiden access'});
+    }
+    next();
+  }
 
   
 
@@ -81,7 +96,7 @@ async function run() {
       const result = await userCollections.insertOne(user);
       res.send(result);
    })
-   app.get('/users',verifyToken,async(req,res)=>{
+   app.get('/users',verifyToken,verifyAdmin,async(req,res)=>{
     const result=await userCollections.find().toArray();
     res.send(result)
   })
@@ -89,7 +104,7 @@ async function run() {
   app.get('/users/admin/:email', verifyToken,async(req,res)=>{
      const email= req.params.email;
      if(email !== req.user.email){
-      return res.status(403).send({message:'unauthorized access'})
+      return res.status(403).send({message:'forbidden access'})
      }
      const query={email:email};
      const user = await userCollections.findOne(query);
@@ -101,7 +116,7 @@ async function run() {
   })
 
 
-   app.patch('/users/admin/:id', async(req,res)=>{
+   app.patch('/users/admin/:id',verifyToken, verifyAdmin, async(req,res)=>{
     const id =req.params.id;
     const filter ={_id:new ObjectId(id)};
     const updatedDoc={
@@ -122,15 +137,29 @@ async function run() {
       const result=await CampCollections.find().toArray();
       res.send(result)
     })
+
+    app.get('/carts', async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await cartCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.post('/carts', async (req, res) => {
+      const cartItem = req.body;
+      const result = await cartCollection.insertOne(cartItem);
+      res.send(result);
+    });
+
    
 
-    app.post('/camps',async(req,res)=>{
+    app.post('/camps' , verifyToken , verifyAdmin,async(req,res)=>{
       const campItem=req.body;
       const result=await CampCollections.insertOne(campItem)
       res.send(result)
     })
 
-    app.delete('/camps/:id', async(req,res) =>{
+    app.delete('/camps/:id', verifyToken, verifyAdmin, async(req,res) =>{
       const id= req.params.id;
       console.log(id);
       const query={_id: new ObjectId(id)}
@@ -144,17 +173,33 @@ async function run() {
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
-          campName: updatedCamp.campName,
+          campname: updatedCamp.campname,
           image: updatedCamp.image,
-          campFees: updatedCamp.campFees,
-          location: updatedCamp.location,
-          healthcareProfessional: updatedCamp.healthcareProfessional,
-          participantCount: updatedCamp.participantCount,
-          description: updatedCamp.description
+          campfees: updatedCamp.campfees,
+          Location: updatedCamp.Location,
+          HealthcareProfessionalName: updatedCamp.HealthcareProfessionalName,
+          Participantcount: updatedCamp.Participantcount,
+          Description: updatedCamp.Description
         }
       };
       const result = await CampCollections.updateOne(filter, updateDoc);
       res.send(result);
+    });
+
+    app.post('/create-payment-intent', async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+      console.log(amount, 'amount inside the intent')
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ['card']
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      })
     });
 
 
