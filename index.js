@@ -35,6 +35,7 @@ async function run() {
     const OrganizerCollections =client.db('MediCamp').collection('organizers')
     const userCollections =client.db('MediCamp').collection('users')
     const cartCollection = client.db("MediCamp").collection("carts");
+    const paymentCollection = client.db("MediCamp").collection("payments");
 
 
    
@@ -151,6 +152,13 @@ async function run() {
       res.send(result);
     });
 
+    app.delete('/carts/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await cartCollection.deleteOne(query);
+      res.send(result);
+    });
+
    
 
     app.post('/camps' , verifyToken , verifyAdmin,async(req,res)=>{
@@ -201,6 +209,23 @@ async function run() {
         clientSecret: paymentIntent.client_secret
       })
     });
+
+    app.post('/payments', async (req, res) => {
+      const payment = req.body;
+      const paymentResult = await paymentCollection.insertOne(payment);
+
+      // //  carefully delete each item from the cart
+      console.log('payment info', payment);
+      const query = {
+        _id: {
+          $in: payment.cartIds.map(id => new ObjectId(id))
+        }
+      };
+
+      const deleteResult = await cartCollection.deleteMany(query);
+
+      res.send( {paymentResult,deleteResult} );
+    })
 
 
 
