@@ -5,12 +5,11 @@ module.exports = (sslController) => {
 
   const router = express.Router();
 
-  router.post("/initiate", sslController.initiate); // was initPayment before
+  router.post("/initiate", sslController.initiate);
   router.post("/success/:tranId", sslController.success);
   router.post("/fail/:tranId", sslController.fail);
-
-  // Add cancel if you implement it
-  // router.post("/cancel", sslController.cancel);
+  router.post("/cancel/:tranId", sslController.cancel);
+  router.get("/status/:tranId", sslController.getStatus);
 
   return router;
 };

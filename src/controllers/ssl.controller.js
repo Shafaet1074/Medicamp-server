@@ -6,25 +6,50 @@ class SSLController {
   initiate = async (req, res) => {
     try {
       const session = await this.sslService.initiateSSL(req.body);
-      res.send({ url: session.GatewayPageURL });
+
+      if (!session || !session.GatewayPageURL) {
+        return res.status(400).send({
+          message: "SSL Session Failed",
+          session,
+        });
+      }
+
+      // Send Gateway URL and tranId for frontend redirect
+      res.send({ url: session.GatewayPageURL, tranId: session.tran_id || req.body.tranId });
     } catch (error) {
-      res.status(500).send({ message: "SSL init failed" });
+      console.error("SSL initiate error:", error);
+      res.status(500).send({ message: "SSL init failed", error: error.message });
     }
   };
 
   success = async (req, res) => {
+    const tranId = req.params.tranId;
     try {
-      const tranId = req.params.tranId;
       await this.sslService.markSuccess(tranId);
-
-      res.redirect(`${process.env.FRONTEND_URL}/payment/success/${tranId}`);
+      res.redirect(`${process.env.FRONTEND_URL}/dashboard/registeredcamps`);
     } catch (error) {
-      res.status(500).send({ message: "SSL success processing failed" });
+      console.error("SSL success error:", error);
+      res.status(500).send({ message: "SSL success failed", error: error.message });
     }
   };
 
   fail = async (req, res) => {
-    res.redirect(`${process.env.FRONTEND_URL}/payment/fail`);
+    const tranId = req.params.tranId;
+    await this.sslService.markFailed(tranId);
+    res.send({ status: "failed", tranId });
+  };
+
+  cancel = async (req, res) => {
+    const tranId = req.params.tranId;
+    await this.sslService.markCancelled(tranId);
+    res.send({ status: "cancelled", tranId });
+  };
+
+  getStatus = async (req, res) => {
+    const tranId = req.params.tranId;
+    const payment = await this.sslService.getPayment(tranId);
+    if (!payment) return res.status(404).send({ message: "Payment not found" });
+    res.send(payment);
   };
 }
 

@@ -9,5 +9,10 @@ module.exports = (paymentController) => {
   router.patch("/:tranId", paymentController.updatePayment); // <-- correct method name
   router.get("/:tranId", paymentController.findPayment); // <-- correct method name
 
+  router.get("/email/:email", paymentController.findPaymentsByEmail);
+  router.delete("/:id", paymentController.deletePayment);
+  router.patch("/by-camp/:campId", paymentController.updateByCampId);
+
+
   return router;
 };

@@ -23,6 +23,19 @@ class CartService {
   async getAll() {
     return await this.Carts.find().toArray(); // fixed from this.collection -> this.Carts
   }
+
+  async updateCartItem(id, data) {
+  return await this.Carts.updateOne(
+    { _id: new this.ObjectId(id) },
+    { $set: data }
+  );
+}
+
+async getCartById(id) {
+  return await this.Carts.findOne({ _id: new this.ObjectId(id) });
+}
+
+
 }
 
 module.exports = CartService;
