@@ -45,13 +45,13 @@ app.use(
   })
 );
 
-/* -------------------- ROOT ROUTE (IMPORTANT) -------------------- */
+/* -------------------- ROOT ROUTE -------------------- */
 app.get("/", (req, res) => {
-  res.send("MediCamp server running 123...");
+  res.send("MediCamp server running...");
 });
 
-/* -------------------- INIT DATABASE & ROUTES -------------------- */
-async function init() {
+/* -------------------- EXPORT FUNCTION FOR VERCEL -------------------- */
+async function initApp() {
   const db = await connectDB();
 
   const UsersCollection = db.Users;
@@ -85,12 +85,14 @@ async function init() {
   app.use("/carts", verifyToken, cartRoutes(cartController));
   app.use("/payments", verifyToken, paymentRoutes(paymentController));
   app.use("/ssl", sslRoutes(sslController));
-  app.use("/", authRoutes);
+  app.use("/auth", authRoutes);
   app.use("/reviews", reviewRoutes(reviewController));
+
+  return app;
 }
 
-init().catch((err) => {
-  console.error("❌ Failed to initialize app:", err);
-});
-
-module.exports = app; // ✅ REQUIRED FOR VERCEL
+/* -------------------- VERCEL HANDLER -------------------- */
+module.exports = async (req, res) => {
+  const initializedApp = await initApp();
+  initializedApp(req, res);
+};

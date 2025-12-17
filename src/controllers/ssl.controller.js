@@ -26,7 +26,11 @@ class SSLController {
     const tranId = req.params.tranId;
     try {
       await this.sslService.markSuccess(tranId);
-      res.redirect(`${process.env.FRONTEND_URL}/dashboard/registeredcamps`);
+    return res.redirect(
+      303,
+      `${process.env.FRONTEND_URL}/payment-success?tranId=${tranId}`
+    );
+
     } catch (error) {
       console.error("SSL success error:", error);
       res.status(500).send({ message: "SSL success failed", error: error.message });
